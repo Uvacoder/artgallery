@@ -1,74 +1,60 @@
-import {memo, useState, useMemo} from "react";
-import {makeStyles} from "./theme";
-import {ThumbNailImage} from "./ThumbNailImage";
-import type {ImageProps} from "./ThumbNailImage";
-import {LightBox} from "./LightBox";
-import {useCallbackFactory} from "powerhooks";
-
+import { memo, useState, useMemo } from "react";
+import { makeStyles } from "./theme";
+import { ThumbNailImage } from "./ThumbNailImage";
+import type { ImageProps } from "./ThumbNailImage";
+import { LightBox } from "./LightBox";
+import { useCallbackFactory } from "powerhooks/useCallbackFactory";
+import { useConstCallback } from "powerhooks/useConstCallback";
 
 export type ThumbNailProps = {
-	images: Pick<ImageProps, "name" | "url">[];
-	imageAverageHeight?: number;
+    images: Pick<ImageProps, "name" | "url">[];
+    imageAverageHeight?: number;
 };
 
-const useStyles = makeStyles<{
-	openingLightBoxImgIndex: number | undefined;
-}>()(
-	(...[, {openingLightBoxImgIndex}]) => ({
-		"root": {
-			"display": "flex",
-			"width": "70%",
-			"flexFlow": "row wrap",
-			"boxSizing": "border-box"
-		},
-		"lightBox": {
-			"transition": "opacity 400ms",
-			"opacity": openingLightBoxImgIndex === undefined ? 0 : 1,
-			"pointerEvents": openingLightBoxImgIndex === undefined ? "none" : undefined
-
-		}
-	})
-);
+const useStyles = makeStyles()({
+    "root": {
+        "display": "flex",
+        "flexFlow": "row wrap",
+        "boxSizing": "border-box",
+    },
+});
 
 export const ThumbNails = memo((props: ThumbNailProps) => {
-	const { images, imageAverageHeight } = props;
-	const [
-		openingLightBoxImgIndex,
-		setOpeningLightBoxImgIndex
-	] = useState<number | undefined>(undefined);
+    const { images, imageAverageHeight } = props;
+    const [openingLightBoxImgIndex, setOpeningLightBoxImgIndex] = useState<number | undefined>(
+        undefined,
+    );
 
-	const { classes } = useStyles({ openingLightBoxImgIndex });
-	const imageUrls = useMemo(()=>{
-		return images.map(image => image.url)
-	},[images]);
+    const { classes } = useStyles();
+    const imageUrls = useMemo(() => {
+        return images.map(image => image.url);
+    }, [images]);
 
-	const onClickFactory = useCallbackFactory((
-		[index]: [number]
-	) => {
-		setOpeningLightBoxImgIndex(index)
-	})
+    const onClickFactory = useCallbackFactory(([index]: [number]) => {
+        setOpeningLightBoxImgIndex(index);
+    });
 
+    const closeLightBox = useConstCallback(() => {
+        setOpeningLightBoxImgIndex(undefined);
+    });
 
+    return (
+        <div className={classes.root}>
+            {images.map(({ name, url }, index) => (
+                <ThumbNailImage
+                    url={url}
+                    name={name}
+                    imageAverageHeight={imageAverageHeight}
+                    key={url}
+                    onClick={onClickFactory(index)}
+                />
+            ))}
 
-	return <div className={classes.root}>
-		{
-			images.map(
-				({ name, url }, index) => <ThumbNailImage
-					url={url}
-					name={name}
-					imageAverageHeight={imageAverageHeight}
-					key={url}
-					onClick={onClickFactory(index)}
-				/>
-			)
-		}
-
-		<LightBox
-			imageUrls={imageUrls}
-			className={classes.lightBox}
-			openingImageIndex={openingLightBoxImgIndex}
-		/>
-	</div>
-
-})
-
+            <LightBox
+                imageUrls={imageUrls}
+                openingImageIndex={openingLightBoxImgIndex}
+                closeLightBox={closeLightBox}
+            />
+        </div>
+    );
+});

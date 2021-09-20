@@ -45,7 +45,8 @@
     "dependencies": {
         "@emotion/react": "^11.4.1",
         "powerhooks": "^0.9.2",
-        "tss-react": "^0.9.1"
+        "tss-react": "^0.9.1",
+        "react-svg": "^14.0.13"
     },
     "devDependencies": {
         "@types/node": "^16.4.9",
