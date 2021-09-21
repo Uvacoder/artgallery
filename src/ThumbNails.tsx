@@ -50,11 +50,7 @@ export const ThumbNails = memo((props: ThumbNailProps) => {
                 />
             ))}
 
-            <LightBox
-                imageUrls={imageUrls}
-                openingImageIndex={openingLightBoxImgIndex}
-                closeLightBox={closeLightBox}
-            />
+            <LightBox imageUrls={images./*slice(0, 3).*/ map(({ url }) => url)} />
         </div>
     );
 });

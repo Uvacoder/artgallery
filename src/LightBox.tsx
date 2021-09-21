@@ -1,38 +1,26 @@
-import { memo, useState, useEffect } from "react";
+import { memo } from "react";
 import { makeStyles } from "./theme";
 import arrowSvg from "./assets/svg/next.svg";
 import closeSvg from "./assets/svg/cancel.svg";
-import { useCallbackFactory } from "powerhooks/useCallbackFactory";
-import { useConstCallback } from "powerhooks/useConstCallback";
 import { ReactSVG } from "react-svg";
 
-export type LightBoxProps = {
-    className?: string;
-    openingImageIndex?: number;
+type LightBoxProps = {
     imageUrls: string[];
-    closeLightBox: () => void;
 };
 
-const animationDuration = 400;
-
-const useStyles = makeStyles<{
-    isActive: boolean;
-}>()((...[, { isActive }]) => ({
+const useStyles = makeStyles()({
     "root": {
+        "display": "flex",
+        "justifyContent": "space-between",
+        "alignItems": "center",
+        "boxSizing": "border-box",
         "position": "fixed",
-        "width": "100%",
-        "height": "100%",
         "top": 0,
         "left": 0,
-        "backgroundColor": "rgba(0, 0, 0, 0.8)",
-        "display": "flex",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "padding": 50,
-        "boxSizing": "border-box",
-        "transition": `opacity ${animationDuration}ms`,
-        "opacity": !isActive ? 0 : 1,
-        "pointerEvents": !isActive ? "none" : undefined,
+        "backgroundColor": "rgba(0,0,0, 0.8)",
+        "width": "100vw",
+        "height": "100vh",
+        "padding": 40,
     },
     "navButtons": {
         "minWidth": 30,
@@ -52,103 +40,41 @@ const useStyles = makeStyles<{
         "top": 30,
         "right": 30,
     },
+    "imageWrapper": {
+        "position": "absolute",
+        "top": 0,
+        "left": 0,
+        "display": "grid",
+        "border": "solid red 2px",
+        "width": "100%",
+        "height": "100%",
+        "boxSizing": "border-box",
+        "gridTemplateRows": "100%",
+        "gridTemplateColumns": "100%",
+        "alignItems": "center",
+        "justifyItems": "center",
+    },
     "image": {
-        "minWidth": 200,
+        "gridRow": "1 / 2",
+        "gridColumn": "1 / 2",
+        "maxWidth": "75%",
         "maxHeight": "90%",
     },
-}));
+});
 
 export const LightBox = memo((props: LightBoxProps) => {
-    const { imageUrls, className, openingImageIndex, closeLightBox } = props;
-    const [isActive, setIsActive] = useState(false);
-    const { classes, cx } = useStyles({
-        isActive,
-    });
-    const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
-
-    useEffect(() => {
-        if (openingImageIndex === undefined) {
-            return;
-        }
-        setIsActive(true);
-    }, [openingImageIndex]);
-
-    const navigateImagesFactory = useCallbackFactory(([direction]: ["prev" | "next"]) => {
-        if (openingImageIndex === undefined) {
-            return;
-        }
-
-        const extremity = (() => {
-            switch (direction) {
-                case "prev":
-                    return 0;
-                case "next":
-                    return imageUrls.length - 1;
-            }
-        })();
-
-        const otherExtremity = (() => {
-            switch (direction) {
-                case "prev":
-                    return imageUrls.length - 1;
-                case "next":
-                    return 0;
-            }
-        })();
-
-        const nextIndex = (() => {
-            switch (direction) {
-                case "prev":
-                    return -1;
-                case "next":
-                    return 1;
-            }
-        })();
-
-        if ((currentIndex ?? openingImageIndex) === extremity) {
-            setCurrentIndex(otherExtremity);
-            return;
-        }
-
-        setCurrentIndex((currentIndex ?? openingImageIndex) + nextIndex);
-    });
-
-    const onClose = useConstCallback(async () => {
-        setIsActive(false);
-        await new Promise<void>(resolve => setTimeout(resolve, animationDuration));
-        closeLightBox();
-    });
-
+    const { imageUrls } = props;
+    const { classes, cx } = useStyles();
     return (
-        <div className={cx(classes.root, className)}>
-            <ReactSVG
-                src={closeSvg}
-                className={cx(classes.closeButton, classes.navButtons)}
-                onClick={onClose}
-            />
-            <ReactSVG
-                src={arrowSvg}
-                className={cx(classes.navButtons, classes.prevButton)}
-                onClick={navigateImagesFactory("prev")}
-            />
-            <img
-                className={classes.image}
-                src={(() => {
-                    if (openingImageIndex === undefined) {
-                        return undefined;
-                    }
-
-                    return currentIndex === undefined
-                        ? imageUrls[openingImageIndex]
-                        : imageUrls[currentIndex];
-                })()}
-                alt="lightBox"
-            />
-            <ReactSVG
-                src={arrowSvg}
-                className={cx(classes.navButtons, classes.nextButton)}
-                onClick={navigateImagesFactory("next")}
-            />
+        <div className={classes.root}>
+            <ReactSVG src={closeSvg} className={cx(classes.closeButton, classes.navButtons)} />
+            <ReactSVG src={arrowSvg} className={cx(classes.navButtons, classes.prevButton)} />
+            <div className={classes.imageWrapper}>
+                {imageUrls.map(url => (
+                    <img className={classes.image} src={url} alt="lightBox"></img>
+                ))}
+            </div>
+            <ReactSVG src={arrowSvg} className={cx(classes.navButtons, classes.nextButton)} />
         </div>
     );
 });
