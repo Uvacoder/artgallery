@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from "react";
+import { memo, useState } from "react";
 import { makeStyles } from "./theme";
 import { ThumbNailImage } from "./ThumbNailImage";
 import type { ImageProps } from "./ThumbNailImage";
@@ -26,9 +26,6 @@ export const ThumbNails = memo((props: ThumbNailProps) => {
     );
 
     const { classes } = useStyles();
-    const imageUrls = useMemo(() => {
-        return images.map(image => image.url);
-    }, [images]);
 
     const onClickFactory = useCallbackFactory(([index]: [number]) => {
         setOpeningLightBoxImgIndex(index);
@@ -40,7 +37,7 @@ export const ThumbNails = memo((props: ThumbNailProps) => {
 
     return (
         <div className={classes.root}>
-            {images.map(({ name, url }, index) => (
+            {images.map(({ url, name }, index) => (
                 <ThumbNailImage
                     url={url}
                     name={name}
@@ -50,7 +47,11 @@ export const ThumbNails = memo((props: ThumbNailProps) => {
                 />
             ))}
 
-            <LightBox imageUrls={images./*slice(0, 3).*/ map(({ url }) => url)} />
+            <LightBox
+                imageUrls={images.map(({ url }) => url)}
+                openingImageIndex={openingLightBoxImgIndex}
+                closeLightBox={closeLightBox}
+            />
         </div>
     );
 });
