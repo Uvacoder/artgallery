@@ -1,9 +1,10 @@
-import { memo, useState, useEffect, useMemo } from "react";
+import { memo, useState, useEffect, useMemo, useRef } from "react";
 import { makeStyles } from "./theme";
 import arrowSvg from "./assets/svg/next.svg";
 import closeSvg from "./assets/svg/cancel.svg";
 import { ReactSVG } from "react-svg";
 import { useConstCallback } from "powerhooks/useConstCallback";
+import { useCallbackFactory } from "powerhooks/useCallbackFactory";
 import { assert } from "tsafe/assert";
 
 type LightBoxProps = {
@@ -27,6 +28,9 @@ const useStyles = makeStyles<{ isDisplayed: boolean }>()((...[, { isDisplayed }]
         "padding": 40,
         "opacity": isDisplayed ? 1 : 0,
         "pointerEvents": isDisplayed ? undefined : "none",
+        "transform": `scale(${isDisplayed ? 1 : 0.8})`,
+        "userSelect": "none",
+        "transition": "opacity 400ms, transform 400ms",
     },
     "navButtons": {
         "minWidth": 30,
@@ -60,12 +64,6 @@ const useStyles = makeStyles<{ isDisplayed: boolean }>()((...[, { isDisplayed }]
         "justifyItems": "center",
         "zIndex": -1,
     },
-    "image": {
-        "gridRow": "1 / 2",
-        "gridColumn": "1 / 2",
-        "maxWidth": "75%",
-        "maxHeight": "90%",
-    },
 }));
 
 export const LightBox = memo((props: LightBoxProps) => {
@@ -74,10 +72,8 @@ export const LightBox = memo((props: LightBoxProps) => {
         "isDisplayed": openingImageIndex !== undefined,
     });
     const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
-
+    const lightBoxRef = useRef<HTMLDivElement>(null);
     const loadedImageIndexes = useMemo<number[]>(() => [], []);
-
-    //console.log(loadedImageIndexes);
 
     useEffect(() => {
         if (openingImageIndex === undefined) {
@@ -92,53 +88,113 @@ export const LightBox = memo((props: LightBoxProps) => {
         setCurrentIndex(loadedImageIndexes.find(index => index === openingImageIndex));
     }, [openingImageIndex]);
 
-    const next = useConstCallback(() => {
-        assert(currentIndex !== undefined);
-        if (currentIndex === imageUrls.length - 1) {
-            if (loadedImageIndexes[0] !== 0) {
-                loadedImageIndexes.unshift(0);
-            }
-            setCurrentIndex(0);
-            return;
-        }
-
-        if (!loadedImageIndexes.includes(currentIndex + 1)) {
-            loadedImageIndexes.push(currentIndex + 1);
-            loadedImageIndexes.sort((a, b) => a - b);
-        }
-
-        setCurrentIndex(currentIndex + 1);
+    const onClose = useConstCallback(() => {
+        closeLightBox();
+        setCurrentIndex(undefined);
     });
 
-    const prev = useConstCallback(() => {
+    const navigate = useConstCallback((direction: "prev" | "next") => {
         assert(currentIndex !== undefined);
-        if (currentIndex === 0) {
-            if (loadedImageIndexes[loadedImageIndexes.length - 1] !== imageUrls.length - 1) {
-                loadedImageIndexes.push(imageUrls.length - 1);
+        if (
+            currentIndex ===
+            (() => {
+                switch (direction) {
+                    case "next":
+                        return imageUrls.length - 1;
+                    case "prev":
+                        return 0;
+                }
+            })()
+        ) {
+            const currentLoadedEnd = (() => {
+                switch (direction) {
+                    case "next":
+                        return 0;
+                    case "prev":
+                        return loadedImageIndexes.length - 1;
+                }
+            })();
+            const indexToAdd = (() => {
+                switch (direction) {
+                    case "next":
+                        return 0;
+                    case "prev":
+                        return imageUrls.length - 1;
+                }
+            })();
+
+            if (loadedImageIndexes[currentLoadedEnd] !== indexToAdd) {
+                loadedImageIndexes.push(indexToAdd);
+                loadedImageIndexes.sort((a, b) => a - b);
             }
-            setCurrentIndex(imageUrls.length - 1);
+            setCurrentIndex(indexToAdd);
             return;
         }
 
-        if (!loadedImageIndexes.includes(currentIndex - 1)) {
-            loadedImageIndexes.push(currentIndex - 1);
+        const indexToAdd = (() => {
+            switch (direction) {
+                case "next":
+                    return currentIndex + 1;
+                case "prev":
+                    return currentIndex - 1;
+            }
+        })();
+
+        if (!loadedImageIndexes.includes(indexToAdd)) {
+            loadedImageIndexes.push(indexToAdd);
             loadedImageIndexes.sort((a, b) => a - b);
         }
 
-        setCurrentIndex(currentIndex - 1);
+        setCurrentIndex(indexToAdd);
+    });
+
+    const navigateFactory = useCallbackFactory(([direction]: ["prev" | "next"]) => {
+        navigate(direction);
+    });
+
+    const keyboardNavigate = useConstCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        const { key } = e;
+        if (key !== "ArrowRight" && key !== "ArrowLeft" && key !== "Escape") {
+            return;
+        }
+
+        switch (key) {
+            case "ArrowLeft":
+                navigate("prev");
+                return;
+            case "ArrowRight":
+                navigate("next");
+                return;
+            case "Escape":
+                onClose();
+        }
+    });
+
+    const onLoad = useConstCallback(() => {
+        if (!lightBoxRef.current) {
+            return;
+        }
+
+        lightBoxRef.current.focus();
     });
 
     return (
-        <div className={classes.root}>
+        <div
+            tabIndex={0}
+            onKeyDown={keyboardNavigate}
+            className={classes.root}
+            onLoad={onLoad}
+            ref={lightBoxRef}
+        >
             <ReactSVG
                 src={closeSvg}
                 className={cx(classes.closeButton, classes.navButtons)}
-                onClick={closeLightBox}
+                onClick={onClose}
             />
             <ReactSVG
                 src={arrowSvg}
                 className={cx(classes.navButtons, classes.prevButton)}
-                onClick={prev}
+                onClick={navigateFactory("prev")}
             />
             <div className={classes.imageWrapper}>
                 {loadedImageIndexes.map(imageIndex => (
@@ -152,7 +208,7 @@ export const LightBox = memo((props: LightBoxProps) => {
             <ReactSVG
                 src={arrowSvg}
                 className={cx(classes.navButtons, classes.nextButton)}
-                onClick={next}
+                onClick={navigateFactory("next")}
             />
         </div>
     );
@@ -167,6 +223,7 @@ const { LightBoxImage } = (() => {
     const useStyles = makeStyles<{ isVisible: boolean }>()((...[, { isVisible }]) => ({
         "root": {
             "opacity": isVisible ? 1 : 0,
+            "pointerEvents": isVisible ? undefined : "none",
             "gridRow": "1 / 2",
             "gridColumn": "1 / 2",
             "maxWidth": "75%",
