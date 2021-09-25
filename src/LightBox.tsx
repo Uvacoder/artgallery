@@ -6,6 +6,7 @@ import { ReactSVG } from "react-svg";
 import { useConstCallback } from "powerhooks/useConstCallback";
 import { useCallbackFactory } from "powerhooks/useCallbackFactory";
 import { assert } from "tsafe/assert";
+import CircleLoader from "react-spinners/CircleLoader";
 
 type LightBoxProps = {
     imageUrls: string[];
@@ -31,10 +32,11 @@ const useStyles = makeStyles<{ isDisplayed: boolean }>()((...[, { isDisplayed }]
         "transform": `scale(${isDisplayed ? 1 : 0.8})`,
         "userSelect": "none",
         "transition": "opacity 400ms, transform 400ms",
+        "outline": "none",
     },
     "navButtons": {
         "minWidth": 30,
-        "width": 50,
+        "maxWidth": 50,
         "fill": "white",
     },
 
@@ -68,9 +70,6 @@ const useStyles = makeStyles<{ isDisplayed: boolean }>()((...[, { isDisplayed }]
 
 export const LightBox = memo((props: LightBoxProps) => {
     const { imageUrls, openingImageIndex, closeLightBox } = props;
-    const { classes, cx } = useStyles({
-        "isDisplayed": openingImageIndex !== undefined,
-    });
     const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
     const lightBoxRef = useRef<HTMLDivElement>(null);
     const loadedImageIndexes = useMemo<number[]>(() => [], []);
@@ -178,6 +177,10 @@ export const LightBox = memo((props: LightBoxProps) => {
         lightBoxRef.current.focus();
     });
 
+    const { classes, cx } = useStyles({
+        "isDisplayed": openingImageIndex !== undefined,
+    });
+
     return (
         <div
             tabIndex={0}
@@ -200,7 +203,7 @@ export const LightBox = memo((props: LightBoxProps) => {
                 {loadedImageIndexes.map(imageIndex => (
                     <LightBoxImage
                         url={imageUrls[imageIndex]}
-                        isVisible={imageIndex === currentIndex}
+                        isDisplayed={imageIndex === currentIndex}
                         key={imageIndex}
                     />
                 ))}
@@ -216,7 +219,7 @@ export const LightBox = memo((props: LightBoxProps) => {
 
 const { LightBoxImage } = (() => {
     type LightBoxImageProps = {
-        isVisible: boolean;
+        isDisplayed: boolean;
         url: string;
     };
 
@@ -228,16 +231,36 @@ const { LightBoxImage } = (() => {
             "gridColumn": "1 / 2",
             "maxWidth": "75%",
             "maxHeight": "90%",
-            "transition": "opacity 300ms",
+            "transition": "opacity 600ms",
+        },
+        "spinner": {
+            "gridRow": "1 / 2",
+            "gridColumn": "1 / 2",
+            "marginLeft": -25,
+            "marginTop": -25,
         },
     }));
 
     const LightBoxImage = memo((props: LightBoxImageProps) => {
-        const { url, isVisible } = props;
+        const { url, isDisplayed } = props;
+        const [isLoaded, setIsLoaded] = useState(false);
 
-        const { classes } = useStyles({ isVisible });
+        const { classes } = useStyles({
+            "isVisible": isDisplayed && isLoaded,
+        });
 
-        return <img src={url} alt="lightBoxImage" className={classes.root} />;
+        const onLoad = useConstCallback(() => {
+            setIsLoaded(true);
+        });
+
+        return (
+            <>
+                <img src={url} alt="lightBoxImage" className={classes.root} onLoad={onLoad} />
+                <div className={classes.spinner}>
+                    <CircleLoader color="white" loading={!isLoaded} />
+                </div>
+            </>
+        );
     });
 
     return { LightBoxImage };
